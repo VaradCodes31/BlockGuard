@@ -15,7 +15,10 @@ IMPORTANT_OPCODES = [
     "REVERT",
     "TIMESTAMP",
     "NUMBER",
-    "BLOCKHASH"
+    "BLOCKHASH",
+    "ADD",
+    "MUL",
+    "SUB"
 ]
 
 
@@ -34,9 +37,6 @@ def build_feature_vector(bytecode):
 
     for op in IMPORTANT_OPCODES:
         features[f"count_{op.lower()}"] = opcode_counts.get(op, 0)
-
-    for op, count in opcode_counts.items():
-        features[f"freq_{op.lower()}"] = count / total_ops
 
     return features
 

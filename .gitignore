@@ -1,20 +1,18 @@
-# Python
+# Temporary Logs & Debugging
+debug_payload.log
+test_plot*.png
+
+# Python & Environment
 __pycache__/
 *.pyc
 *.pyo
-
-# Virtual environment
 venv/
-
-# Mac
 .DS_Store
 
-# Jupyter
-.ipynb_checkpoints/
-
-# Large model files (optional)
-*.h5
-*.pkl
-
-# Data (optional if large)
+# Heavy Datasets (Raw data should not be tracked)
 data/
+
+# Intermediate NumPy Training Arrays 
+# (These are 15MB+ each and regenerate on training)
+deep_learning/X.npy
+deep_learning/y.npy
