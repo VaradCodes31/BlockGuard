@@ -1,0 +1,7 @@
+flask
+flask-cors
+werkzeug
+tensorflow
+numpy
+shap
+joblib
