@@ -1,5 +1,7 @@
 import os
 import sys
+import json
+from datetime import datetime
 import pickle
 import numpy as np
 import tensorflow as tf
@@ -180,10 +182,11 @@ def analyze():
             rf_confidence = float(rf_probs[rf_pred_class])
             
             # Ensembling: If RF specifically detects a high-threat semantic mismatch from DL, defer to the RF logic
-            if rf_label in ["reentrancy", "integer", "block_dependency"]:
+            if rf_label in ["reentrancy", "integer", "block_dependency"] and rf_confidence > 0.45:
                 label = rf_label
                 confidence = rf_confidence
             else:
+                # Revert to DL baseline if RF is uncertain
                 label = dl_label
                 confidence = dl_confidence
         except:
@@ -232,6 +235,57 @@ def analyze():
         insights.append({"type": "warning", "msg": "Arithmetic Computation: Math operations executed natively without safe math wrappers."})
     if "TIMESTAMP" in opcodes or "NUMBER" in opcodes:
         insights.append({"type": "info", "msg": "Environment Reliance: Uses miner-manipulable environmental variables."})
+        
+    # Compile the final multi-probability distribution layout
+    primary_probs = []
+    target_classes = ['reentrancy', 'ether_lock', 'block_dependency', 'integer']
+    
+    if total < 50:
+        # Heuristics max out primary metric explicitly
+        for t in target_classes:
+            primary_probs.append({
+                "class_name": t.replace('_', ' ').title(),
+                "probability": confidence if label.replace(' ', '_').lower() == t else (1.0 - confidence)/3.0
+            })
+    else:
+        # Determine which model is serving the primary confidence matrix 
+        try:
+            if 'rf_confidence' in locals() and confidence == rf_confidence:
+                source_probs = rf_probs
+                source_classes = rf_model.classes_
+            else:
+                source_probs = prediction[0]
+                source_classes = label_encoder.classes_
+            
+            for idx, c_name in enumerate(source_classes):
+                if c_name in target_classes:
+                    primary_probs.append({
+                        "class_name": c_name.replace('_', ' ').title(),
+                        "probability": float(source_probs[idx])
+                    })
+        except:
+            primary_probs = []
+
+    # 8. Active Learning Telemetry Archival
+    telemetry_payload = {
+        "timestamp": datetime.utcnow().isoformat(),
+        "bytecode_length": len(raw_content),
+        "total_opcodes": total,
+        "prediction": {
+            "vulnerability": label.replace('_', ' ').title(),
+            "confidence": confidence,
+            "risk": risk
+        },
+        "insights_count": len(insights)
+    }
+    
+    try:
+        os.makedirs(os.path.join(BASE_DIR, "backend", "data"), exist_ok=True)
+        telemetry_file = os.path.join(BASE_DIR, "backend", "data", "prediction_telemetry.jsonl")
+        with open(telemetry_file, "a") as f:
+            f.write(json.dumps(telemetry_payload) + "\n")
+    except Exception as e:
+        print("Failed to append telemetry:", e)
 
     return jsonify({
         "status": "success",
@@ -241,6 +295,7 @@ def analyze():
                 "confidence": confidence,
                 "risk": risk
             },
+            "all_probabilities": primary_probs,
             "shap_data": shap_data,
             "opcode_distribution": opcode_distribution,
             "insights": insights
@@ -248,4 +303,4 @@ def analyze():
     }), 200
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=5001)
