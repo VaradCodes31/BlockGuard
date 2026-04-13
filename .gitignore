@@ -16,3 +16,5 @@ data/
 # (These are 15MB+ each and regenerate on training)
 deep_learning/X.npy
 deep_learning/y.npy
+
+results/
